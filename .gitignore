@@ -1,0 +1,17 @@
+# Ferramenta de bootstrap (Composer baixado localmente)
+composer.phar
+
+# Logs transitórios
+*.log
+
+# Editores / SO
+/.idea
+/.vscode
+/.zed
+.DS_Store
+Thumbs.db
+
+# Redundância de segurança (backend/.gitignore já cobre estes dentro de backend/)
+backend/vendor/
+backend/node_modules/
+backend/.env

@@ -1,0 +1,17 @@
+# Normaliza fim de linha para LF no repositório (evita quebrar scripts shell no
+# container Linux e mantém consistência entre Windows/Linux).
+* text=auto eol=lf
+
+# Scripts e configs que DEVEM ser LF
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+*.conf        text eol=lf
+
+# Arquivos binários (não normalizar)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

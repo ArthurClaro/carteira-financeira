@@ -1,0 +1,76 @@
+# Stack da Carteira Financeira — monólito Laravel + infra.
+# Portas de host deslocadas (3307/6380) para não colidir com MySQL/Redis locais.
+services:
+  app:
+    build:
+      context: ./docker/php
+    container_name: wallet-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [wallet]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: wallet-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks: [wallet]
+
+  mysql:
+    image: mysql:8.0
+    container_name: wallet-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: wallet
+      MYSQL_USER: wallet
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psecret"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [wallet]
+
+  redis:
+    image: redis:7-alpine
+    container_name: wallet-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    networks: [wallet]
+
+  node:
+    image: node:20-alpine
+    container_name: wallet-node
+    working_dir: /var/www/html
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./backend:/var/www/html
+    ports:
+      - "5173:5173"
+    networks: [wallet]
+
+networks:
+  wallet:
+    driver: bridge
+
+volumes:
+  mysql-data:
