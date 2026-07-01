@@ -16,6 +16,10 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Evita erro de "Vite manifest not found" ao renderizar páginas nos testes.
+        $this->withoutVite();
+    })
     ->in('Feature');
 
 /*

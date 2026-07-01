@@ -9,6 +9,10 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      # Artefatos compilados/cache em volumes (fs Linux). O bind mount do Docker
+      # Desktop no Windows não permite utime(), o que quebra o cache de views Blade.
+      - laravel-framework:/var/www/html/storage/framework
+      - laravel-bootstrap-cache:/var/www/html/bootstrap/cache
     depends_on:
       mysql:
         condition: service_healthy
@@ -74,3 +78,5 @@ networks:
 
 volumes:
   mysql-data:
+  laravel-framework:
+  laravel-bootstrap-cache:
