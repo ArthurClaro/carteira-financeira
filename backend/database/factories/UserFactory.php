@@ -42,4 +42,14 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Define o saldo da carteira (criada pelo UserObserver) após o usuário existir.
+     */
+    public function withBalanceCents(int $cents): static
+    {
+        return $this->afterCreating(function (User $user) use ($cents): void {
+            $user->wallet()->update(['balance_cents' => $cents]);
+        });
+    }
 }
