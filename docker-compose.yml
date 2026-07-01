@@ -18,6 +18,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      node:
+        condition: service_completed_successfully
     networks: [wallet]
 
   nginx:
@@ -61,15 +63,16 @@ services:
       - "6380:6379"
     networks: [wallet]
 
+  # Builder de assets: instala deps e compila (Vite/Tailwind), depois encerra.
+  # Servir assets estáticos (via nginx) é mais robusto para demo/avaliação do que
+  # depender do dev server. Para desenvolvimento com HMR: `npm run dev` (porta 5173).
   node:
     image: node:20-alpine
     container_name: wallet-node
     working_dir: /var/www/html
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run build"
     volumes:
       - ./backend:/var/www/html
-    ports:
-      - "5173:5173"
     networks: [wallet]
 
 networks:

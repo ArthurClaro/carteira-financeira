@@ -3,6 +3,10 @@ set -e
 
 cd /var/www/html
 
+# Garante o modo "manifest" do Vite (assets estáticos servidos pelo nginx),
+# removendo hot file remanescente de um dev server (que apontaria para :5173).
+rm -f public/hot
+
 if [ ! -d vendor ]; then
     echo "[entrypoint] Instalando dependências PHP (composer install)..."
     composer install --no-interaction --prefer-dist --optimize-autoloader
