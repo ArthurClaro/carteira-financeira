@@ -6,4 +6,92 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Paleta "verde-cédula": o verde profundo das notas de Real. */
+    --color-brand-50: #effaf6;
+    --color-brand-100: #d7f2e7;
+    --color-brand-200: #b0e4d1;
+    --color-brand-300: #7ccfb4;
+    --color-brand-400: #45b393;
+    --color-brand-500: #23977a;
+    --color-brand-600: #167a63;
+    --color-brand-700: #146151;
+    --color-brand-800: #124e42;
+    --color-brand-900: #114038;
+    --color-brand-950: #082621;
+}
+
+/* ─── Animações ─────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes balance-pop {
+    0% {
+        transform: scale(1);
+    }
+    35% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@utility animate-fade-up {
+    animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-balance-pop {
+    animation: balance-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@utility animate-slide-in {
+    animation: slide-in 0.3s ease-out both;
+}
+
+@utility stagger-1 {
+    animation-delay: 75ms;
+}
+
+@utility stagger-2 {
+    animation-delay: 150ms;
+}
+
+@utility stagger-3 {
+    animation-delay: 225ms;
+}
+
+@utility stagger-4 {
+    animation-delay: 300ms;
+}
+
+/* Acessibilidade: sem movimento para quem prefere assim. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

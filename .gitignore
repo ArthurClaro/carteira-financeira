@@ -41,3 +41,4 @@ Homestead.yaml
 # SO
 .DS_Store
 Thumbs.db
+.claude/
