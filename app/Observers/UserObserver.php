@@ -8,7 +8,7 @@ class UserObserver
 {
     /**
      * Cada usuário nasce com uma carteira (relação 1–1). Fica dentro da mesma
-     * transação de banco do cadastro (ver RegisterUserAction).
+     * transação de banco do cadastro (ver App\Livewire\Auth\Register).
      */
     public function created(User $user): void
     {
