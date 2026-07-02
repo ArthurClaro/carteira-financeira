@@ -4,6 +4,7 @@ namespace App\Livewire\Wallet;
 
 use App\Exceptions\DomainException;
 use App\Livewire\Concerns\InteractsWithCurrentWallet;
+use App\Livewire\Concerns\ThrottlesTransactions;
 use App\Models\User;
 use App\Services\WalletService;
 use App\Support\Money;
@@ -16,6 +17,7 @@ use Livewire\Component;
 class TransferForm extends Component
 {
     use InteractsWithCurrentWallet;
+    use ThrottlesTransactions;
 
     #[Validate('required|email')]
     public string $recipient_email = '';
@@ -37,6 +39,7 @@ class TransferForm extends Component
     {
         $this->success = null;
         $this->validate();
+        $this->ensureTransactionsAreNotRateLimited('transfer', 'amount');
 
         $recipient = User::where('email', $this->recipient_email)->first();
 

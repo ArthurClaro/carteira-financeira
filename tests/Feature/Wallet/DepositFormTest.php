@@ -41,3 +41,19 @@ it('envia chave de idempotência e a renova após o sucesso', function () {
     expect(Transaction::where('idempotency_key', $originalKey)->exists())->toBeTrue()
         ->and($component->get('idempotencyKey'))->not->toBe($originalKey);
 });
+
+it('aplica rate limiting após exceder o limite de depósitos', function () {
+    config(['wallet.throttle.max_attempts' => 3]);
+
+    $user = User::factory()->withBalanceCents(0)->create();
+    $component = Livewire::actingAs($user)->test(DepositForm::class);
+
+    for ($i = 0; $i < 3; $i++) {
+        $component->set('amount', '10.00')->call('deposit')->assertHasNoErrors();
+    }
+
+    $component->set('amount', '10.00')->call('deposit')->assertHasErrors('amount');
+
+    // Apenas os 3 depósitos permitidos foram persistidos.
+    expect($user->wallet->refresh()->balance_cents)->toBe(3000);
+});

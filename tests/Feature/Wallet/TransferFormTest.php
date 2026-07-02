@@ -56,3 +56,26 @@ it('erro de saldo insuficiente não altera saldos', function () {
     expect($alice->wallet->refresh()->balance_cents)->toBe(1000)
         ->and($bob->wallet->refresh()->balance_cents)->toBe(0);
 });
+
+it('aplica rate limiting após exceder o limite de transferências', function () {
+    config(['wallet.throttle.max_attempts' => 3]);
+
+    $sender = User::factory()->withBalanceCents(100000)->create();
+    $receiver = User::factory()->withBalanceCents(0)->create();
+    $component = Livewire::actingAs($sender)->test(TransferForm::class);
+
+    for ($i = 0; $i < 3; $i++) {
+        $component->set('recipient_email', $receiver->email)
+            ->set('amount', '10.00')
+            ->call('transfer')
+            ->assertHasNoErrors();
+    }
+
+    $component->set('recipient_email', $receiver->email)
+        ->set('amount', '10.00')
+        ->call('transfer')
+        ->assertHasErrors('amount');
+
+    // Apenas as 3 transferências permitidas debitaram o saldo.
+    expect($sender->wallet->refresh()->balance_cents)->toBe(100000 - 3000);
+});

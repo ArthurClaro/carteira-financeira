@@ -4,6 +4,7 @@ namespace App\Livewire\Wallet;
 
 use App\Exceptions\DomainException;
 use App\Livewire\Concerns\InteractsWithCurrentWallet;
+use App\Livewire\Concerns\ThrottlesTransactions;
 use App\Services\WalletService;
 use App\Support\Money;
 use Illuminate\Contracts\View\View;
@@ -14,6 +15,7 @@ use Livewire\Component;
 class DepositForm extends Component
 {
     use InteractsWithCurrentWallet;
+    use ThrottlesTransactions;
 
     #[Validate('required|numeric|gt:0|decimal:0,2')]
     public string $amount = '';
@@ -32,6 +34,7 @@ class DepositForm extends Component
     {
         $this->success = null;
         $this->validate();
+        $this->ensureTransactionsAreNotRateLimited('deposit', 'amount');
 
         try {
             $transaction = $service->deposit(
