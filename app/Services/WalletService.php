@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Exceptions\CannotReverseReversalException;
+use App\Exceptions\IdempotencyConflictException;
 use App\Exceptions\InsufficientBalanceException;
 use App\Exceptions\InvalidAmountException;
 use App\Exceptions\SelfTransferException;
@@ -31,7 +32,15 @@ class WalletService
         $this->assertPositiveAmount($amountCents);
 
         return DB::transaction(function () use ($wallet, $amountCents, $idempotencyKey) {
-            if ($existing = $this->existingIdempotent($idempotencyKey)) {
+            $existing = $this->existingIdempotent(
+                $idempotencyKey,
+                type: TransactionType::Deposit,
+                fromWalletId: null,
+                toWalletId: $wallet->id,
+                amountCents: $amountCents,
+            );
+
+            if ($existing !== null) {
                 return $existing;
             }
 
@@ -61,7 +70,15 @@ class WalletService
         }
 
         return DB::transaction(function () use ($from, $to, $amountCents, $idempotencyKey) {
-            if ($existing = $this->existingIdempotent($idempotencyKey)) {
+            $existing = $this->existingIdempotent(
+                $idempotencyKey,
+                type: TransactionType::Transfer,
+                fromWalletId: $from->id,
+                toWalletId: $to->id,
+                amountCents: $amountCents,
+            );
+
+            if ($existing !== null) {
                 return $existing;
             }
 
@@ -140,13 +157,39 @@ class WalletService
         }
     }
 
-    private function existingIdempotent(?string $idempotencyKey): ?Transaction
-    {
+    /**
+     * Replay idempotente seguro: a chave só devolve a transação original se a
+     * operação for exatamente a mesma (tipo, carteiras e valor). Reuso da chave
+     * com parâmetros diferentes é rejeitado — evita que uma chave vazada/reusada
+     * devolva a transação de outro usuário ou mascare uma operação divergente.
+     */
+    private function existingIdempotent(
+        ?string $idempotencyKey,
+        TransactionType $type,
+        ?int $fromWalletId,
+        ?int $toWalletId,
+        int $amountCents,
+    ): ?Transaction {
         if ($idempotencyKey === null) {
             return null;
         }
 
-        return Transaction::where('idempotency_key', $idempotencyKey)->first();
+        $existing = Transaction::where('idempotency_key', $idempotencyKey)->first();
+
+        if ($existing === null) {
+            return null;
+        }
+
+        $matches = $existing->type === $type
+            && $existing->from_wallet_id === $fromWalletId
+            && $existing->to_wallet_id === $toWalletId
+            && $existing->amount_cents === $amountCents;
+
+        if (! $matches) {
+            throw new IdempotencyConflictException;
+        }
+
+        return $existing;
     }
 
     /**

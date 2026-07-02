@@ -2,6 +2,7 @@
 
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Exceptions\IdempotencyConflictException;
 use App\Exceptions\InvalidAmountException;
 use App\Models\Transaction;
 use App\Models\User;
@@ -48,4 +49,31 @@ it('não duplica depósito com a mesma chave de idempotência', function () {
     expect($a->id)->toBe($b->id)
         ->and($user->wallet->refresh()->balance_cents)->toBe(1000)
         ->and(Transaction::count())->toBe(1);
+});
+
+it('rejeita reuso da chave de idempotência com valor diferente', function () {
+    $user = User::factory()->withBalanceCents(0)->create();
+
+    $this->service->deposit($user->wallet, 1000, 'key-1');
+
+    expect(fn () => $this->service->deposit($user->wallet, 9999, 'key-1'))
+        ->toThrow(IdempotencyConflictException::class);
+
+    // O conflito não altera o estado: saldo e ledger seguem os da operação original.
+    expect($user->wallet->refresh()->balance_cents)->toBe(1000)
+        ->and(Transaction::count())->toBe(1);
+});
+
+it('não devolve a transação de outro usuário ao reusar a chave', function () {
+    $alice = User::factory()->withBalanceCents(0)->create();
+    $mallory = User::factory()->withBalanceCents(0)->create();
+
+    $this->service->deposit($alice->wallet, 1000, 'key-alice');
+
+    // Mallory tenta replay da chave de Alice na própria carteira: conflito,
+    // nunca a transação (nem os dados) de Alice.
+    expect(fn () => $this->service->deposit($mallory->wallet, 1000, 'key-alice'))
+        ->toThrow(IdempotencyConflictException::class);
+
+    expect($mallory->wallet->refresh()->balance_cents)->toBe(0);
 });

@@ -128,12 +128,25 @@ Livewire (UI)  ──►  WalletService (domínio)  ──►  Eloquent / MySQL
    apaga** nada: cria um lançamento compensatório (`type = reversal`), aponta para a transação
    original (`related_transaction_id`) e marca-a como `reversed`. Auditabilidade total.
 
-4. **Idempotência.** Depósito e transferência aceitam uma `idempotency_key` — reprocessar a mesma
-   operação (replay de rede, duplo clique) retorna a transação original, sem duplicar o efeito.
+4. **Idempotência com validação de conflito.** Depósito e transferência aceitam uma
+   `idempotency_key` — reprocessar a mesma operação (replay de rede, duplo clique) retorna a
+   transação original, sem duplicar o efeito. A chave só faz replay se a operação for **idêntica**
+   (tipo, carteiras e valor); reuso com parâmetros diferentes é rejeitado
+   (`IdempotencyConflictException`), como fazem gateways de pagamento (ex.: Stripe). Isso impede
+   que uma chave vazada/reusada devolva a transação de outro usuário.
 
 5. **Estorno seguro.** Só pode ser feito **uma vez** por transação, **não se aplica a estornos**,
    e é autorizado apenas ao iniciador da operação (ver [`TransactionPolicy`](app/Policies/TransactionPolicy.php)).
    Pode gerar saldo negativo (ex.: o destinatário já gastou o valor) — coerente com a regra.
+   *E se o destinatário recebeu uma transferência indevida?* Ele não precisa de estorno: basta
+   fazer uma **transferência de volta** — mesmo efeito contábil, sem permitir que terceiros
+   desfaçam operações que não iniciaram.
+
+6. **Reconciliação do ledger** (`php artisan wallet:reconcile`). Como o ledger é a fonte da
+   verdade, o saldo de cada carteira deve ser igual a créditos − débitos. O comando varre todas
+   as carteiras e reporta qualquer divergência (exit code ≠ 0), cobrindo o requisito de reversão
+   "em qualquer caso de **inconsistência**": a detecção aponta a transação candidata a estorno.
+   Pode ser agendado (scheduler) em produção.
 
 6. **Erros de negócio como exceptions tipadas** (`InsufficientBalanceException`,
    `SelfTransferException`, `TransactionAlreadyReversedException`, ...), capturadas na UI e
@@ -215,6 +228,8 @@ erDiagram
   agregadores (ELK/Loki): `storage/logs/structured.json.log`.
 - **Health check** nativo em `/up`.
 - **Telescope** (local) para inspecionar requisições, queries, exceptions e jobs.
+- **Reconciliação** — `php artisan wallet:reconcile` confere saldo × ledger de todas as
+  carteiras e falha (exit code 1) ao detectar divergência.
 
 ---
 
