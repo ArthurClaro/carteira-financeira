@@ -54,7 +54,7 @@ complexidade de uma API + SPA separada. A regra de negócio fica isolada da apre
 - ✅ **Estorno** de qualquer operação — por inconsistência ou a pedido do usuário
 - ✅ Saldo pode ficar **negativo** apenas via estorno/inconsistência (nunca por transferência)
 
-Diferenciais: **Docker**, **testes** (unit + integração, 51 casos), **análise estática**
+Diferenciais: **Docker**, **testes** (unit + integração + concorrência, 60 casos), **análise estática**
 (Larastan nível 6), **documentação** e **observabilidade** (ver seções abaixo).
 
 ---
@@ -93,7 +93,7 @@ Ferramentas: **Telescope** (local) em `/telescope` · Health check em `/up`.
 ## Como rodar os testes
 
 ```bash
-docker compose exec app ./vendor/bin/pest        # 51 testes
+docker compose exec app ./vendor/bin/pest        # 60 testes
 docker compose exec app ./vendor/bin/pint --test # code style (PSR-12)
 docker compose exec app ./vendor/bin/phpstan analyse   # análise estática (Larastan, nível 6)
 ```
@@ -148,7 +148,7 @@ Livewire (UI)  ──►  WalletService (domínio)  ──►  Eloquent / MySQL
    "em qualquer caso de **inconsistência**": a detecção aponta a transação candidata a estorno.
    Pode ser agendado (scheduler) em produção.
 
-6. **Erros de negócio como exceptions tipadas** (`InsufficientBalanceException`,
+7. **Erros de negócio como exceptions tipadas** (`InsufficientBalanceException`,
    `SelfTransferException`, `TransactionAlreadyReversedException`, ...), capturadas na UI e
    convertidas em feedback amigável — sem vazar detalhes internos.
 
