@@ -9,9 +9,6 @@ jobs:
   tests:
     name: Pint + Pest
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +23,8 @@ jobs:
       - name: Cache Composer packages
         uses: actions/cache@v4
         with:
-          path: backend/vendor
-          key: composer-${{ hashFiles('backend/composer.lock') }}
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
 
       - name: Install dependencies
@@ -40,6 +37,9 @@ jobs:
 
       - name: Check code style (Pint)
         run: ./vendor/bin/pint --test
+
+      - name: Static analysis (Larastan)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 
       - name: Run test suite (Pest)
         run: ./vendor/bin/pest

@@ -3,10 +3,12 @@
 namespace App\Livewire\Wallet;
 
 use App\Exceptions\DomainException;
+use App\Livewire\Concerns\InteractsWithCurrentWallet;
 use App\Models\Transaction;
 use App\Services\WalletService;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -14,6 +16,7 @@ use Livewire\WithPagination;
 class TransactionHistory extends Component
 {
     use AuthorizesRequests;
+    use InteractsWithCurrentWallet;
     use WithPagination;
 
     public ?string $flash = null;
@@ -27,7 +30,7 @@ class TransactionHistory extends Component
         $this->resetPage();
     }
 
-    public function reverse(string $uuid, WalletService $wallet): void
+    public function reverse(string $uuid, WalletService $service): void
     {
         $this->flash = null;
 
@@ -36,7 +39,7 @@ class TransactionHistory extends Component
         $this->authorize('reverse', $transaction);
 
         try {
-            $wallet->reverse($transaction);
+            $service->reverse($transaction);
         } catch (DomainException $e) {
             $this->flash = $e->getMessage();
             $this->flashIsError = true;
@@ -49,12 +52,12 @@ class TransactionHistory extends Component
         $this->dispatch('wallet-updated');
     }
 
-    public function render()
+    public function render(): View
     {
-        $walletId = Auth::user()->wallet->id;
+        $walletId = $this->currentWallet()->id;
 
         $transactions = Transaction::query()
-            ->where(fn ($q) => $q->where('from_wallet_id', $walletId)->orWhere('to_wallet_id', $walletId))
+            ->where(fn (Builder $q) => $q->where('from_wallet_id', $walletId)->orWhere('to_wallet_id', $walletId))
             ->latest()
             ->paginate(10);
 

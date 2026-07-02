@@ -21,7 +21,7 @@ class TransactionFactory extends Factory
             'type' => TransactionType::Deposit,
             'status' => TransactionStatus::Completed,
             'from_wallet_id' => null,
-            'to_wallet_id' => fn () => User::factory()->create()->wallet->id,
+            'to_wallet_id' => fn () => User::factory()->create()->wallet?->id,
             'amount_cents' => fake()->numberBetween(100, 100_000),
             'idempotency_key' => null,
             'metadata' => null,
@@ -32,7 +32,7 @@ class TransactionFactory extends Factory
     {
         return $this->state(fn () => [
             'type' => TransactionType::Transfer,
-            'from_wallet_id' => fn () => User::factory()->create()->wallet->id,
+            'from_wallet_id' => fn () => User::factory()->create()->wallet?->id,
         ]);
     }
 

@@ -7,7 +7,19 @@
 Dockerfile    text eol=lf
 *.conf        text eol=lf
 
-# Arquivos binários (não normalizar)
+# Diffs mais legíveis
+*.blade.php   diff=html
+*.css         diff=css
+*.html        diff=html
+*.md          diff=markdown
+*.php         diff=php
+
+# Excluídos de exports (git archive)
+/.github        export-ignore
+.editorconfig   export-ignore
+.gitattributes  export-ignore
+
+# Binários (não normalizar)
 *.png binary
 *.jpg binary
 *.jpeg binary

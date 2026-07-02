@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Wallet\DepositForm;
+use App\Models\Transaction;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -27,4 +28,16 @@ it('valida valor obrigatório e positivo', function () {
         ->assertHasErrors('amount');
 
     expect($user->wallet->refresh()->balance_cents)->toBe(0);
+});
+
+it('envia chave de idempotência e a renova após o sucesso', function () {
+    $user = User::factory()->withBalanceCents(0)->create();
+
+    $component = Livewire::actingAs($user)->test(DepositForm::class);
+    $originalKey = $component->get('idempotencyKey');
+
+    $component->set('amount', '10.00')->call('deposit')->assertHasNoErrors();
+
+    expect(Transaction::where('idempotency_key', $originalKey)->exists())->toBeTrue()
+        ->and($component->get('idempotencyKey'))->not->toBe($originalKey);
 });

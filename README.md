@@ -54,8 +54,8 @@ complexidade de uma API + SPA separada. A regra de negócio fica isolada da apre
 - ✅ **Estorno** de qualquer operação — por inconsistência ou a pedido do usuário
 - ✅ Saldo pode ficar **negativo** apenas via estorno/inconsistência (nunca por transferência)
 
-Diferenciais: **Docker**, **testes** (unit + integração, 50 casos), **documentação** e
-**observabilidade** (ver seções abaixo).
+Diferenciais: **Docker**, **testes** (unit + integração, 51 casos), **análise estática**
+(Larastan nível 6), **documentação** e **observabilidade** (ver seções abaixo).
 
 ---
 
@@ -93,12 +93,13 @@ Ferramentas: **Telescope** (local) em `/telescope` · Health check em `/up`.
 ## Como rodar os testes
 
 ```bash
-docker compose exec app ./vendor/bin/pest        # 50 testes
+docker compose exec app ./vendor/bin/pest        # 51 testes
 docker compose exec app ./vendor/bin/pint --test # code style (PSR-12)
+docker compose exec app ./vendor/bin/phpstan analyse   # análise estática (Larastan, nível 6)
 ```
 
-Os testes usam **SQLite in-memory** (rápidos e isolados). O mesmo roda no **CI** (GitHub Actions,
-`.github/workflows/ci.yml`).
+Os testes usam **SQLite in-memory** (rápidos e isolados). O CI (GitHub Actions,
+`.github/workflows/ci.yml`) roda os três: **Pint**, **Larastan** e **Pest**.
 
 ---
 
@@ -115,13 +116,13 @@ Livewire (UI)  ──►  WalletService (domínio)  ──►  Eloquent / MySQL
 ### Decisões-chave
 
 1. **Dinheiro em centavos (inteiro `BIGINT`), nunca `float`.** Elimina erro de ponto flutuante —
-   base de qualquer aplicação financeira. Encapsulado no Value Object [`Money`](backend/app/Support/Money.php)
+   base de qualquer aplicação financeira. Encapsulado no Value Object [`Money`](app/Support/Money.php)
    (parsing via `bcmath`, formatação BRL).
 
 2. **Atomicidade com lock pessimista.** Toda mutação de saldo ocorre dentro de `DB::transaction`
    com `lockForUpdate` nas carteiras envolvidas, **travadas em ordem crescente de id** para evitar
    deadlock entre transferências concorrentes em sentidos opostos. Isso previne *double-spend* em
-   condição de corrida. Ver [`WalletService`](backend/app/Services/WalletService.php).
+   condição de corrida. Ver [`WalletService`](app/Services/WalletService.php).
 
 3. **Ledger append-only.** A tabela `transactions` é um livro-razão imutável. Um estorno **não
    apaga** nada: cria um lançamento compensatório (`type = reversal`), aponta para a transação
@@ -131,7 +132,7 @@ Livewire (UI)  ──►  WalletService (domínio)  ──►  Eloquent / MySQL
    operação (replay de rede, duplo clique) retorna a transação original, sem duplicar o efeito.
 
 5. **Estorno seguro.** Só pode ser feito **uma vez** por transação, **não se aplica a estornos**,
-   e é autorizado apenas ao iniciador da operação (ver [`TransactionPolicy`](backend/app/Policies/TransactionPolicy.php)).
+   e é autorizado apenas ao iniciador da operação (ver [`TransactionPolicy`](app/Policies/TransactionPolicy.php)).
    Pode gerar saldo negativo (ex.: o destinatário já gastou o valor) — coerente com a regra.
 
 6. **Erros de negócio como exceptions tipadas** (`InsufficientBalanceException`,
@@ -208,7 +209,7 @@ erDiagram
 
 ## Observabilidade
 
-- **Correlação de requisições** — o middleware [`RequestId`](backend/app/Http/Middleware/RequestId.php)
+- **Correlação de requisições** — o middleware [`RequestId`](app/Http/Middleware/RequestId.php)
   injeta um `X-Request-Id` no header da resposta e no contexto de **todos** os logs.
 - **Logs estruturados** — canal `json` (Monolog `JsonFormatter`) no stack, prontos para
   agregadores (ELK/Loki): `storage/logs/structured.json.log`.
@@ -219,24 +220,26 @@ erDiagram
 
 ## Estrutura de pastas
 
+O app Laravel é a **raiz** do repositório (monólito idiomático — sem separação back/front).
+
 ```
-backend/
-  app/
-    Services/WalletService.php      # núcleo: depósito, transferência, estorno (atômico)
-    Support/Money.php               # value object monetário (centavos)
-    Models/                         # User, Wallet, Transaction
-    Livewire/{Auth,Wallet}/         # componentes de UI
-    Policies/TransactionPolicy.php  # autorização de estorno
-    Observers/UserObserver.php      # cria a carteira no cadastro
-    Exceptions/                     # erros de domínio tipados
-    Enums/                          # TransactionType, TransactionStatus
-    Http/Middleware/RequestId.php   # correlação de logs
-  database/migrations|factories|seeders/
-  resources/views/                  # layout + componentes Livewire (Blade)
-  tests/{Unit,Feature}/             # 50 testes (Pest)
-docker/                             # Dockerfile (php-fpm) + nginx
-docker-compose.yml
-.github/workflows/ci.yml            # CI: Pint + Pest
+.
+├── app/
+│   ├── Services/WalletService.php      # núcleo: depósito, transferência, estorno (atômico)
+│   ├── Support/Money.php               # value object monetário (centavos)
+│   ├── Models/                         # User, Wallet, Transaction
+│   ├── Livewire/{Auth,Wallet}/         # componentes de UI (Blade)
+│   ├── Policies/TransactionPolicy.php  # autorização de estorno
+│   ├── Observers/UserObserver.php      # cria a carteira no cadastro
+│   ├── Exceptions/                     # erros de domínio tipados
+│   ├── Enums/                          # TransactionType, TransactionStatus
+│   └── Http/Middleware/RequestId.php   # correlação de logs
+├── database/migrations|factories|seeders/
+├── resources/views/                    # layout + componentes Livewire
+├── tests/{Unit,Feature}/               # 51 testes (Pest)
+├── docker/                             # Dockerfile (php-fpm) + nginx
+├── docker-compose.yml
+└── .github/workflows/ci.yml            # CI: Pint + Pest
 ```
 
 ---

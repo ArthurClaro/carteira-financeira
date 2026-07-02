@@ -3,15 +3,20 @@
 namespace App\Livewire\Wallet;
 
 use App\Exceptions\DomainException;
+use App\Livewire\Concerns\InteractsWithCurrentWallet;
 use App\Models\User;
 use App\Services\WalletService;
 use App\Support\Money;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class TransferForm extends Component
 {
+    use InteractsWithCurrentWallet;
+
     #[Validate('required|email')]
     public string $recipient_email = '';
 
@@ -20,7 +25,15 @@ class TransferForm extends Component
 
     public ?string $success = null;
 
-    public function transfer(WalletService $wallet): void
+    /** Chave de idempotência — impede que um duplo envio processe duas transferências. */
+    public string $idempotencyKey = '';
+
+    public function mount(): void
+    {
+        $this->idempotencyKey = (string) Str::uuid();
+    }
+
+    public function transfer(WalletService $service): void
     {
         $this->success = null;
         $this->validate();
@@ -39,11 +52,15 @@ class TransferForm extends Component
             return;
         }
 
+        $recipientWallet = $recipient->wallet;
+        abort_if($recipientWallet === null, 500);
+
         try {
-            $transaction = $wallet->transfer(
-                Auth::user()->wallet,
-                $recipient->wallet,
+            $transaction = $service->transfer(
+                $this->currentWallet(),
+                $recipientWallet,
                 Money::fromReais($this->amount)->cents(),
+                $this->idempotencyKey,
             );
         } catch (DomainException $e) {
             $this->addError('amount', $e->getMessage());
@@ -53,10 +70,11 @@ class TransferForm extends Component
 
         $this->success = "Transferência de {$transaction->amount()->format()} para {$recipient->name} realizada.";
         $this->reset('recipient_email', 'amount');
+        $this->idempotencyKey = (string) Str::uuid(); // nova operação
         $this->dispatch('wallet-updated');
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.wallet.transfer-form');
     }
