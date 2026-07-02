@@ -42,4 +42,56 @@ jobs:
         run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
 
       - name: Run test suite (Pest)
-        run: ./vendor/bin/pest
+        run: ./vendor/bin/pest --exclude-group=concurrency
+
+  concurrency:
+    name: Concorrência (MySQL)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: wallet
+          MYSQL_ROOT_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -psecret"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, pdo_mysql, mbstring, bcmath, intl, redis, pcntl
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run concurrency suite (Pest, MySQL)
+        env:
+          CONCURRENCY_DB_HOST: 127.0.0.1
+          CONCURRENCY_DB_PORT: 3306
+          CONCURRENCY_DB_DATABASE: wallet
+          CONCURRENCY_DB_USERNAME: root
+          CONCURRENCY_DB_PASSWORD: secret
+        run: ./vendor/bin/pest --group=concurrency

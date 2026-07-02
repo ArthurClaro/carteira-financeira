@@ -22,6 +22,10 @@ pest()->extend(TestCase::class)
     })
     ->in('Feature');
 
+// Suíte de concorrência: usa MySQL real e pcntl_fork; NÃO usa RefreshDatabase
+// (a transação por teste tornaria os dados invisíveis aos processos filhos).
+pest()->extend(TestCase::class)->in('Concurrency');
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
